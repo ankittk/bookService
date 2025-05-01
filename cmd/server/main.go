@@ -2,32 +2,56 @@ package main
 
 import (
 	"context"
-	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/joho/godotenv"
+
+	"github.com/ankittk/bookService/internal/config"
+	"github.com/ankittk/bookService/internal/server"
 	"github.com/ankittk/bookService/pkg/logger"
 )
 
 var log *logger.Logger
 
 func init() {
-	// Initialize the logger
 	log = logger.NewLogger()
+	_ = godotenv.Load(".env")
 }
 
 func main() {
-	// Create a new context with dynamic key-value pairs
-	contextData := map[string]interface{}{
-		"header_id":  "12345",
-		"user_id":    "67890",
-		"request_id": "abc123",
-	}
+	appCfg := config.NewDefaultConfig()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Create the context with a map that contains dynamic key-value pairs
-	ctx := context.WithValue(context.Background(), "context_data", contextData)
+	grpcServer := server.NewGRPCServer(appCfg)
+	httpServer := server.NewHTTPServer(ctx, appCfg)
 
-	log.Add(slog.Int("status_code", 404)).Error(ctx, "404 Not Found: User missing")
-	log.Add(slog.String("user_id", "67890")).Info(ctx, "User found")
-	log.Info(context.Background(), "Hello World")
-	log.Error(ctx, "Error occurred")
-	log.Debug(ctx, "Debug message")
+	// Using a goroutine allows the main application to remain responsive to the shutdown signal
+	// while the server continues to serve grpc requests.
+	// If the server runs in the main thread, it will block further execution.
+	go grpcServer.Start(ctx)
+	go httpServer.Start(ctx)
+
+	// Handle shutdown
+	stop := make(chan os.Signal, 1)
+	// Use os/signal to listen for interrupt signals (like Ctrl+C)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	// Wait for the interrupt signal to gracefully shut down the server
+	<-stop
+
+	log.Info(ctx, "Shutting down servers...")
+
+	// When shutting down, it's essential to give enough time for the server to finish ongoing requests
+	// before shutting down completely.
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	grpcServer.Stop(ctx)
+	httpServer.Stop(shutdownCtx)
+
+	log.Info(shutdownCtx, "Servers shut down gracefully")
 }

@@ -56,7 +56,7 @@ func (l *Logger) extractContextValues(ctx context.Context) string {
 	return contextDetails
 }
 
-func (l *Logger) log(ctx context.Context, level LogLevel, message string) {
+func (l *Logger) logInternal(ctx context.Context, level LogLevel, message any) {
 	contextDetails := l.extractContextValues(ctx)
 
 	// Format the log message with the current timestamp
@@ -105,31 +105,31 @@ func getColorForLogLevel(level LogLevel) string {
 // log first, then reset tags
 
 func (l *Logger) Info(ctx context.Context, message string) *Logger {
-	l.log(ctx, Info, message)
+	l.logInternal(ctx, Info, message)
 	l.resetTags()
 	return l
 }
 
 func (l *Logger) Warn(ctx context.Context, message string) *Logger {
-	l.log(ctx, Warn, message)
+	l.logInternal(ctx, Warn, message)
 	l.resetTags()
 	return l
 }
 
-func (l *Logger) Error(ctx context.Context, message string) *Logger {
-	l.log(ctx, Error, message)
+func (l *Logger) Error(ctx context.Context, message any) *Logger {
+	l.logInternal(ctx, Error, message)
 	l.resetTags()
 	return l
 }
 
 func (l *Logger) Debug(ctx context.Context, message string) *Logger {
-	l.log(ctx, Debug, message)
+	l.logInternal(ctx, Debug, message)
 	l.resetTags()
 	return l
 }
 
-func (l *Logger) Fatal(ctx context.Context, message string) *Logger {
-	l.log(ctx, Fatal, message)
+func (l *Logger) Fatal(ctx context.Context, message any) *Logger {
+	l.logInternal(ctx, Fatal, message)
 	l.resetTags()
 	// Handle fatal error (e.g., exit the program)
 	os.Exit(1)
