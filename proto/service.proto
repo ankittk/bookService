@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package bookService;
+
+option go_package = "./gen;bookService";
+
+import "google/protobuf/timestamp.proto";
+import "third_party/google/api/annotations.proto";
+import "third_party/proto-gen-validate/validate.proto";
+
+service BookService {
+  rpc Check (HealthCheckRequest) returns (HealthCheckResponse) {
+    option (google.api.http) = {
+      get: "/v1/health"
+    };
+  }
+
+  rpc SearchBooks (SearchBooksRequest) returns (SearchBooksResponse) {
+    option (google.api.http) = {
+      get: "/v1/books/search"
+    };
+  }
+
+  rpc GetBookDetails (GetBookDetailsRequest) returns (GetBookDetailsResponse) {
+    option (google.api.http) = {
+      get: "/v1/books/{book_id}"
+    };
+  }
+
+  rpc AddBook (AddBookRequest) returns (AddBookResponse) {
+    option (google.api.http) = {
+      post: "/v1/books"
+      body: "*"
+    };
+  }
+
+  rpc UpdateBook (UpdateBookRequest) returns (UpdateBookResponse) {
+    option (google.api.http) = {
+      put: "/v1/books/{book_id}"
+      body: "*"
+    };
+  }
+
+  rpc DeleteBook (DeleteBookRequest) returns (DeleteBookResponse) {
+    option (google.api.http) = {
+      delete: "/v1/books/{book_id}"
+    };
+  }
+}
+
+message Book {
+  string book_id = 1;
+  string title = 2;
+  string author = 3;
+  string genre = 4;
+  string language = 5;
+  string publisher = 6;
+  google.protobuf.Timestamp published_date = 7;
+  float price = 8;
+  string description = 9;
+}
+
+message Response {
+  string status_code = 1;
+  string message = 2;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1 [(validate.rules).string.in = "UP,DOWN"];  // Validation: status must be 'UP' or 'DOWN'
+  string message = 2;
+}
+
+message SearchBooksRequest {
+  string query = 1 [(validate.rules).string.min_len = 1];   // Validation: query must have at least 1 character
+  string genre = 2 [(validate.rules).string.min_len = 1];   // Validation: genre cannot be empty
+  string author = 3;
+  string language = 4;
+  string publisher = 5;
+  google.protobuf.Timestamp published_date = 6;
+  string price_range = 7;
+  int32 page = 8 [(validate.rules).int32.gt = 0];  // Validation: page must be > 0
+  int32 per_page = 9 [(validate.rules).int32.gt = 0];  // Validation: per_page must be > 0
+  string sort_by = 10 [(validate.rules).string.in = "title,author,published_date,price"];  // Validation: sort by allowed fields
+  string order = 11 [(validate.rules).string.in = "asc,desc"];  // Validation: order must be 'asc' or 'desc'
+  string cursor = 12; // Cursor for pagination
+  int32 limit = 13 [(validate.rules).int32.gt = 0];  // Limit number of results
+}
+
+message SearchBooksResponse {
+  repeated Book books = 1;
+  int32 total_count = 2;
+  int32 current_page = 3;
+  int32 total_pages = 4;
+  bool has_next_page = 5;
+  bool has_previous_page = 6;
+  Response status = 7;
+}
+
+message GetBookDetailsRequest {
+  string book_id = 1 [(validate.rules).string.min_len = 1];  // Validation: book_id must have at least 1 character
+}
+
+message GetBookDetailsResponse {
+  Book book = 1;
+  Response status = 2;
+}
+
+message AddBookRequest {
+  Book book = 1;
+}
+
+message AddBookResponse {
+  string book_id = 1;
+  Response status = 2;
+}
+
+message UpdateBookRequest {
+  string book_id = 1 [(validate.rules).string.min_len = 1];  // Validation: book_id must have at least 1 character
+  Book book = 2;
+}
+
+message UpdateBookResponse {
+  string book_id = 1;
+  Response status = 2;
+}
+
+message DeleteBookRequest {
+  string book_id = 1 [(validate.rules).string.min_len = 1];  // Validation: book_id must have at least 1 character
+}
+
+message DeleteBookResponse {
+  string book_id = 1;
+  Response status = 2;
+}
