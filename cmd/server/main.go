@@ -14,10 +14,8 @@ import (
 	"github.com/ankittk/bookService/pkg/logger"
 )
 
-var log *logger.Logger
-
 func init() {
-	log = logger.NewLogger()
+	// Load environment variables from .env file
 	_ = godotenv.Load(".env")
 }
 
@@ -43,7 +41,7 @@ func main() {
 	// Wait for the interrupt signal to gracefully shut down the server
 	<-stop
 
-	log.Info(ctx, "Shutting down servers...")
+	logger.Info(ctx, "Shutting down servers...")
 
 	// When shutting down, it's essential to give enough time for the server to finish ongoing requests
 	// before shutting down completely.
@@ -53,5 +51,5 @@ func main() {
 	grpcServer.Stop(ctx)
 	httpServer.Stop(shutdownCtx)
 
-	log.Info(shutdownCtx, "Servers shut down gracefully")
+	logger.Info(shutdownCtx, "Servers shut down gracefully")
 }

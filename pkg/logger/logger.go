@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+var defaultLogger *Logger
+
+func init() {
+	defaultLogger = NewLogger()
+}
+
 type Logger struct {
 	logger *log.Logger
 	tags   []slog.Attr
@@ -20,11 +26,11 @@ type Logger struct {
 type LogLevel int
 
 const (
-	Info LogLevel = iota
-	Debug
-	Warn
-	Error
-	Fatal
+	InfoLevel LogLevel = iota
+	DebugLevel
+	WarnLevel
+	ErrorLevel
+	FatalLevel
 )
 
 func NewLogger() *Logger {
@@ -32,6 +38,30 @@ func NewLogger() *Logger {
 		logger: log.New(os.Stdout, "", log.LstdFlags),
 		tags:   []slog.Attr{},
 	}
+}
+
+func Info(ctx context.Context, message any) *Logger {
+	return defaultLogger.Info(ctx, message)
+}
+
+func Warn(ctx context.Context, message any) *Logger {
+	return defaultLogger.Warn(ctx, message)
+}
+
+func Error(ctx context.Context, message any) *Logger {
+	return defaultLogger.Error(ctx, message)
+}
+
+func Debug(ctx context.Context, message any) *Logger {
+	return defaultLogger.Debug(ctx, message)
+}
+
+func Fatal(ctx context.Context, message any) *Logger {
+	return defaultLogger.Fatal(ctx, message)
+}
+
+func Add(attrs ...slog.Attr) *Logger {
+	return defaultLogger.add(attrs...)
 }
 
 // Custom function to extract context values dynamically from a map
@@ -76,7 +106,7 @@ func (l *Logger) logInternal(ctx context.Context, level LogLevel, message any) {
 	logMessage = fmt.Sprintf("%s%s\033[0m", color, logMessage)
 
 	// Output the message
-	if level >= Error {
+	if level >= ErrorLevel {
 		l.logger.SetFlags(0)
 		l.logger.SetOutput(os.Stderr)
 	} else {
@@ -88,15 +118,15 @@ func (l *Logger) logInternal(ctx context.Context, level LogLevel, message any) {
 
 func getColorForLogLevel(level LogLevel) string {
 	switch level {
-	case Info:
+	case InfoLevel:
 		return "\033[37m" // Gray for info
-	case Debug:
+	case DebugLevel:
 		return "\033[34m" // Blue for debug
-	case Warn:
+	case WarnLevel:
 		return "\033[33m" // Yellow for warnings
-	case Error:
+	case ErrorLevel:
 		return "\033[31m" // Red for errors
-	case Fatal:
+	case FatalLevel:
 		return "\033[31;1m" // Bold red for fatal
 	}
 	return ""
@@ -104,32 +134,32 @@ func getColorForLogLevel(level LogLevel) string {
 
 // log first, then reset tags
 
-func (l *Logger) Info(ctx context.Context, message string) *Logger {
-	l.logInternal(ctx, Info, message)
+func (l *Logger) Info(ctx context.Context, message any) *Logger {
+	l.logInternal(ctx, InfoLevel, message)
 	l.resetTags()
 	return l
 }
 
-func (l *Logger) Warn(ctx context.Context, message string) *Logger {
-	l.logInternal(ctx, Warn, message)
+func (l *Logger) Warn(ctx context.Context, message any) *Logger {
+	l.logInternal(ctx, WarnLevel, message)
 	l.resetTags()
 	return l
 }
 
 func (l *Logger) Error(ctx context.Context, message any) *Logger {
-	l.logInternal(ctx, Error, message)
+	l.logInternal(ctx, ErrorLevel, message)
 	l.resetTags()
 	return l
 }
 
-func (l *Logger) Debug(ctx context.Context, message string) *Logger {
-	l.logInternal(ctx, Debug, message)
+func (l *Logger) Debug(ctx context.Context, message any) *Logger {
+	l.logInternal(ctx, DebugLevel, message)
 	l.resetTags()
 	return l
 }
 
 func (l *Logger) Fatal(ctx context.Context, message any) *Logger {
-	l.logInternal(ctx, Fatal, message)
+	l.logInternal(ctx, FatalLevel, message)
 	l.resetTags()
 	// Handle fatal error (e.g., exit the program)
 	os.Exit(1)
@@ -137,7 +167,7 @@ func (l *Logger) Fatal(ctx context.Context, message any) *Logger {
 }
 
 // Add one or more slog.Attr to the logger
-func (l *Logger) Add(attrs ...slog.Attr) *Logger {
+func (l *Logger) add(attrs ...slog.Attr) *Logger {
 	// Lock the mutex before modifying the tags
 	l.mu.Lock()
 	defer l.mu.Unlock()

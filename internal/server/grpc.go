@@ -10,7 +10,8 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/ankittk/bookService/internal/config"
-	log "github.com/ankittk/bookService/pkg/logger"
+	"github.com/ankittk/bookService/internal/middleware"
+	"github.com/ankittk/bookService/pkg/logger"
 	bs "github.com/ankittk/bookService/proto/gen"
 )
 
@@ -21,8 +22,17 @@ type GRPCServer struct {
 
 // NewGRPCServer creates a new gRPC server instance
 func NewGRPCServer(cfg *config.Config) *GRPCServer {
-	// Create a gRPC server
-	s := grpc.NewServer()
+	// Create a new gRPC server with a custom interceptor
+	// The interceptor is used for logging, authentication, etc.
+	// In this case, we are using a middleware that limits the rate of requests
+	// to the server. The rate limit is set to 100 requests per 5 minutes.
+	// The middleware is implemented in the middleware package.
+	// The interceptor is a function that takes a context, a request, and a response writer
+	// and returns an error. It is used to intercept the request before it reaches the handler.
+
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(middleware.NewMiddleware().Interceptor),
+	)
 
 	// Register the BookServiceServer with the gRPC server
 	bs.RegisterBookServiceServer(s, NewBookServiceServer())
@@ -41,17 +51,17 @@ func NewGRPCServer(cfg *config.Config) *GRPCServer {
 func (g *GRPCServer) Start(ctx context.Context) {
 	lis, err := net.Listen("tcp", g.addr)
 	if err != nil {
-		log.NewLogger().Error(ctx, errors.Wrap(err, "failed to listen"))
+		logger.Error(ctx, errors.Wrap(err, "failed to listen"))
 	}
 
-	log.NewLogger().Info(ctx, fmt.Sprintf("Starting gRPC server at: %s", g.addr))
+	logger.Info(ctx, fmt.Sprintf("Starting gRPC server at: %s", g.addr))
 	if err := g.server.Serve(lis); err != nil {
-		log.NewLogger().Error(ctx, errors.Wrap(err, "failed to serve gRPC server"))
+		logger.Error(ctx, errors.Wrap(err, "failed to serve gRPC server"))
 	}
 }
 
 // Stop gracefully stops the gRPC server
 func (g *GRPCServer) Stop(ctx context.Context) {
 	g.server.GracefulStop()
-	log.NewLogger().Info(ctx, "gRPC server stopped gracefully")
+	logger.Info(ctx, "gRPC server stopped gracefully")
 }
